@@ -1,5 +1,7 @@
 package com.yang.yangshi.ui.dashboard
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yang.yangshi.domain.model.MealLog
+import com.yang.yangshi.domain.model.MealLogItem
 import com.yang.yangshi.domain.model.MealType
 
 @Composable
@@ -45,44 +47,29 @@ fun DashboardScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. 日期切换 Header
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedButton(onClick = viewModel::navigatePreviousDay) {
-                    Text("< 前一天")
-                }
-                Text(
-                    text = state.selectedDate,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                OutlinedButton(onClick = viewModel::navigateNextDay) {
-                    Text("后一天 >")
-                }
-            }
-        }
-
-        // 2. 每日营养大盘核心进度 Card
+        // 1. 每日营养大盘核心进度 Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "每日碳蛋脂进度",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "今日碳蛋脂进度",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = state.selectedDate,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // 热量
@@ -123,12 +110,12 @@ fun DashboardScreen(
         }
 
         Text(
-            text = "三餐与加餐打卡摘要",
+            text = "今日四餐打卡摘要",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
 
-        // 3. 四餐打卡卡片 (早餐、午餐、晚餐、加餐)
+        // 2. 四餐打卡卡片 (早餐、午餐、晚餐、加餐)
         MealType.entries.forEach { mealType ->
             val mealLog = state.mealSummaries[mealType]
             MealSummaryCard(
@@ -136,6 +123,83 @@ fun DashboardScreen(
                 mealLog = mealLog,
                 onAddClick = { onNavigateToMealPortion(mealType) }
             )
+        }
+
+        // 3. 折叠式历史打卡日志
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.toggleHistoryExpanded() },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "历史打卡日志",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (state.isHistoryExpanded) "点击收起折叠栏" else "点击展开查看具体历史日志与细目",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    Text(
+                        text = if (state.isHistoryExpanded) "收起 ▲" else "展开 ▼",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                AnimatedVisibility(visible = state.isHistoryExpanded) {
+                    Column(modifier = Modifier.padding(top = 12.dp)) {
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 日期切换器
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(onClick = viewModel::navigatePreviousDay) {
+                                Text("< 前一天")
+                            }
+                            Text(
+                                text = state.selectedDate,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            OutlinedButton(onClick = viewModel::navigateNextDay) {
+                                Text("后一天 >")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 历史细目列表
+                        MealType.entries.forEach { mealType ->
+                            val log = state.mealSummaries[mealType]
+                            val isExpanded = state.expandedMealTypes.contains(mealType)
+
+                            ExpandableMealLogSection(
+                                mealType = mealType,
+                                mealLog = log,
+                                isExpanded = isExpanded,
+                                onToggleExpand = { viewModel.toggleMealExpanded(mealType) },
+                                onDeleteItem = viewModel::deleteLogItem
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -217,6 +281,69 @@ private fun MealSummaryCard(
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.outline
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpandableMealLogSection(
+    mealType: MealType,
+    mealLog: MealLog?,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onDeleteItem: (Long) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggleExpand() },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${mealType.displayName} ${if (mealLog != null && mealLog.items.isNotEmpty()) "(${mealLog.items.size}项)" else "(无记录)"}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+            Text(
+                text = if (isExpanded) "收起 ▲" else "展开 ▼",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        if (isExpanded && mealLog != null && mealLog.items.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            mealLog.items.forEach { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "• ${item.foodName} ${item.foodWeightG}g",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "碳 ${item.actualCarbs}g | 蛋 ${item.actualProtein}g | 脂 ${item.actualFat}g (${item.actualEnergy.toInt()} kcal)",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    OutlinedButton(onClick = { onDeleteItem(item.id) }) {
+                        Text("删除", fontSize = 11.sp)
+                    }
+                }
             }
         }
     }

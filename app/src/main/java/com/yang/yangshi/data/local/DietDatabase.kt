@@ -24,7 +24,7 @@ import com.yang.yangshi.data.local.entity.UserProfileEntity
         MealLogEntity::class,
         MealLogItemEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

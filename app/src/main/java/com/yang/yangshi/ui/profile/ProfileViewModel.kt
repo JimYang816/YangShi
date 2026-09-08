@@ -11,9 +11,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 data class ProfileUiState(
+    val heightCmText: String = "170.0",
     val weightKgText: String = "70.0",
+    val bmiText: String = "24.2",
     val carbGPerKgText: String = "3.0",
     val proteinGPerKgText: String = "2.0",
     val fatGPerKgText: String = "0.8",
@@ -21,6 +24,8 @@ data class ProfileUiState(
     val lunchRatioText: String = "40",
     val dinnerRatioText: String = "30",
     val snackRatioText: String = "0",
+    val isDirty: Boolean = false,
+    val savedProfile: UserProfile? = null,
     val dailyTargetPreview: MacroTarget = MacroTarget(210.0, 140.0, 56.0, 1904.0),
     val breakfastTargetPreview: MacroTarget = MacroTarget(63.0, 42.0, 16.8, 571.0),
     val lunchTargetPreview: MacroTarget = MacroTarget(84.0, 56.0, 22.4, 762.0),
@@ -47,6 +52,8 @@ class ProfileViewModel(
             repository.getUserProfile().collect { profile ->
                 _uiState.update { state ->
                     val newState = state.copy(
+                        savedProfile = profile,
+                        heightCmText = profile.heightCm.toString(),
                         weightKgText = profile.weightKg.toString(),
                         carbGPerKgText = profile.carbGPerKg.toString(),
                         proteinGPerKgText = profile.proteinGPerKg.toString(),
@@ -54,7 +61,8 @@ class ProfileViewModel(
                         breakfastRatioText = (profile.breakfastRatio * 100).toInt().toString(),
                         lunchRatioText = (profile.lunchRatio * 100).toInt().toString(),
                         dinnerRatioText = (profile.dinnerRatio * 100).toInt().toString(),
-                        snackRatioText = (profile.snackRatio * 100).toInt().toString()
+                        snackRatioText = (profile.snackRatio * 100).toInt().toString(),
+                        isDirty = false
                     )
                     recalculatePreviews(newState, profile)
                 }
@@ -62,48 +70,77 @@ class ProfileViewModel(
         }
     }
 
+    fun onHeightChanged(value: String) {
+        _uiState.update { it.copy(heightCmText = value, saveMessage = null) }
+        updatePreviewsAndDirty()
+    }
+
     fun onWeightChanged(value: String) {
         _uiState.update { it.copy(weightKgText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
     fun onCarbRatioChanged(value: String) {
         _uiState.update { it.copy(carbGPerKgText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
     fun onProteinRatioChanged(value: String) {
         _uiState.update { it.copy(proteinGPerKgText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
     fun onFatRatioChanged(value: String) {
         _uiState.update { it.copy(fatGPerKgText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
     fun onBreakfastRatioChanged(value: String) {
         _uiState.update { it.copy(breakfastRatioText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
     fun onLunchRatioChanged(value: String) {
         _uiState.update { it.copy(lunchRatioText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
     fun onDinnerRatioChanged(value: String) {
         _uiState.update { it.copy(dinnerRatioText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
     fun onSnackRatioChanged(value: String) {
         _uiState.update { it.copy(snackRatioText = value, saveMessage = null) }
-        updatePreviews()
+        updatePreviewsAndDirty()
     }
 
-    private fun updatePreviews() {
+    fun cancelChanges() {
+        val saved = _uiState.value.savedProfile ?: return
+        _uiState.update { state ->
+            val newState = state.copy(
+                heightCmText = saved.heightCm.toString(),
+                weightKgText = saved.weightKg.toString(),
+                carbGPerKgText = saved.carbGPerKg.toString(),
+                proteinGPerKgText = saved.proteinGPerKg.toString(),
+                fatGPerKgText = saved.fatGPerKg.toString(),
+                breakfastRatioText = (saved.breakfastRatio * 100).toInt().toString(),
+                lunchRatioText = (saved.lunchRatio * 100).toInt().toString(),
+                dinnerRatioText = (saved.dinnerRatio * 100).toInt().toString(),
+                snackRatioText = (saved.snackRatio * 100).toInt().toString(),
+                isDirty = false,
+                errorMessage = null,
+                saveMessage = null
+            )
+            recalculatePreviews(newState, saved)
+        }
+    }
+
+    private fun updatePreviewsAndDirty() {
         val current = _uiState.value
+        val saved = current.savedProfile
+
+        val height = current.heightCmText.toDoubleOrNull() ?: 170.0
         val weight = current.weightKgText.toDoubleOrNull() ?: 70.0
         val carb = current.carbGPerKgText.toDoubleOrNull() ?: 3.0
         val protein = current.proteinGPerKgText.toDoubleOrNull() ?: 2.0
@@ -114,6 +151,7 @@ class ProfileViewModel(
         val sRatio = (current.snackRatioText.toDoubleOrNull() ?: 0.0) / 100.0
 
         val tempProfile = UserProfile(
+            heightCm = height,
             weightKg = weight,
             carbGPerKg = carb,
             proteinGPerKg = protein,
@@ -123,7 +161,20 @@ class ProfileViewModel(
             dinnerRatio = dRatio,
             snackRatio = sRatio
         )
-        _uiState.update { recalculatePreviews(it, tempProfile) }
+
+        val dirty = if (saved == null) true else {
+            current.heightCmText != saved.heightCm.toString() ||
+            current.weightKgText != saved.weightKg.toString() ||
+            current.carbGPerKgText != saved.carbGPerKg.toString() ||
+            current.proteinGPerKgText != saved.proteinGPerKg.toString() ||
+            current.fatGPerKgText != saved.fatGPerKg.toString() ||
+            current.breakfastRatioText != (saved.breakfastRatio * 100).toInt().toString() ||
+            current.lunchRatioText != (saved.lunchRatio * 100).toInt().toString() ||
+            current.dinnerRatioText != (saved.dinnerRatio * 100).toInt().toString() ||
+            current.snackRatioText != (saved.snackRatio * 100).toInt().toString()
+        }
+
+        _uiState.update { recalculatePreviews(it.copy(isDirty = dirty), tempProfile) }
     }
 
     private fun recalculatePreviews(state: ProfileUiState, profile: UserProfile): ProfileUiState {
@@ -133,7 +184,11 @@ class ProfileViewModel(
         val dTarget = MacroTargetCalculator.calculateMealTarget(daily, profile.dinnerRatio * 100)
         val sTarget = MacroTargetCalculator.calculateMealTarget(daily, profile.snackRatio * 100)
 
+        val bmiVal = profile.bmi
+        val formattedBmi = String.format(Locale.US, "%.1f", bmiVal)
+
         return state.copy(
+            bmiText = formattedBmi,
             dailyTargetPreview = daily,
             breakfastTargetPreview = bTarget,
             lunchTargetPreview = lTarget,
@@ -144,6 +199,7 @@ class ProfileViewModel(
 
     fun saveProfile() {
         val current = _uiState.value
+        val height = current.heightCmText.toDoubleOrNull()
         val weight = current.weightKgText.toDoubleOrNull()
         val carb = current.carbGPerKgText.toDoubleOrNull()
         val protein = current.proteinGPerKgText.toDoubleOrNull()
@@ -153,6 +209,10 @@ class ProfileViewModel(
         val dRatio = current.dinnerRatioText.toDoubleOrNull()
         val sRatio = current.snackRatioText.toDoubleOrNull() ?: 0.0
 
+        if (height == null || height <= 0) {
+            _uiState.update { it.copy(errorMessage = "请输入有效的身高(cm)") }
+            return
+        }
         if (weight == null || weight <= 0) {
             _uiState.update { it.copy(errorMessage = "请输入有效的体重(kg)") }
             return
@@ -176,6 +236,7 @@ class ProfileViewModel(
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             val profile = UserProfile(
                 id = 1,
+                heightCm = height,
                 weightKg = weight,
                 carbGPerKg = carb,
                 proteinGPerKg = protein,
@@ -186,7 +247,14 @@ class ProfileViewModel(
                 snackRatio = sRatio / 100.0
             )
             repository.saveUserProfile(profile)
-            _uiState.update { it.copy(isSaving = false, saveMessage = "身体指标与目标系数保存成功！") }
+            _uiState.update {
+                it.copy(
+                    savedProfile = profile,
+                    isDirty = false,
+                    isSaving = false,
+                    saveMessage = "身体指标与目标系数保存成功！"
+                )
+            }
         }
     }
 }

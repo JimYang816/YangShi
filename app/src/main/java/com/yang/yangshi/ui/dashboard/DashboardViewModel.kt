@@ -36,6 +36,8 @@ data class DashboardUiState(
         MealType.DINNER to null,
         MealType.SNACK to null
     ),
+    val isHistoryExpanded: Boolean = false,
+    val expandedMealTypes: Set<MealType> = setOf(MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER, MealType.SNACK),
     val isLoading: Boolean = false
 )
 
@@ -67,7 +69,7 @@ class DashboardViewModel(
         viewModelScope.launch {
             repository.getMealLogsForDate(date).collect { logs ->
                 val dailyTarget = MacroTargetCalculator.calculateDailyTarget(profile)
-                
+
                 var consumedCarbs = 0.0
                 var consumedProtein = 0.0
                 var consumedFat = 0.0
@@ -120,6 +122,29 @@ class DashboardViewModel(
                     )
                 }
             }
+        }
+    }
+
+    fun toggleHistoryExpanded() {
+        _uiState.update { it.copy(isHistoryExpanded = !it.isHistoryExpanded) }
+    }
+
+    fun toggleMealExpanded(mealType: MealType) {
+        _uiState.update { state ->
+            val set = state.expandedMealTypes.toMutableSet()
+            if (set.contains(mealType)) {
+                set.remove(mealType)
+            } else {
+                set.add(mealType)
+            }
+            state.copy(expandedMealTypes = set)
+        }
+    }
+
+    fun deleteLogItem(itemId: Long) {
+        viewModelScope.launch {
+            repository.deleteMealLogItem(itemId)
+            loadDataForDate(_uiState.value.userProfile, _uiState.value.selectedDate)
         }
     }
 

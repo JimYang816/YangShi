@@ -12,6 +12,7 @@ data class UserProfileEntity(
     @PrimaryKey
     val id: Int = 1,
     val weightKg: Double,
+    val heightCm: Double = 170.0,
     val carbGPerKg: Double,
     val proteinGPerKg: Double,
     val fatGPerKg: Double,

@@ -18,6 +18,7 @@ fun UserProfileEntity.toDomain(): UserProfile {
     return UserProfile(
         id = id,
         weightKg = weightKg,
+        heightCm = heightCm,
         carbGPerKg = carbGPerKg,
         proteinGPerKg = proteinGPerKg,
         fatGPerKg = fatGPerKg,
@@ -32,6 +33,7 @@ fun UserProfile.toEntity(): UserProfileEntity {
     return UserProfileEntity(
         id = id,
         weightKg = weightKg,
+        heightCm = heightCm,
         carbGPerKg = carbGPerKg,
         proteinGPerKg = proteinGPerKg,
         fatGPerKg = fatGPerKg,

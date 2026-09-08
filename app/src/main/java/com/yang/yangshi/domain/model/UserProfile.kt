@@ -6,6 +6,7 @@ package com.yang.yangshi.domain.model
 data class UserProfile(
     val id: Int = 1,
     val weightKg: Double = 70.0,
+    val heightCm: Double = 170.0,
     val carbGPerKg: Double = 3.0,
     val proteinGPerKg: Double = 2.0,
     val fatGPerKg: Double = 0.8,
@@ -14,6 +15,12 @@ data class UserProfile(
     val dinnerRatio: Double = 0.30,
     val snackRatio: Double = 0.0
 ) {
+    /**
+     * 身体质量指数 BMI (只读)
+     */
+    val bmi: Double
+        get() = if (heightCm > 0) weightKg / ((heightCm / 100.0) * (heightCm / 100.0)) else 0.0
+
     /**
      * 每日总碳水化合物目标 (g)
      */

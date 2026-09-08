@@ -20,7 +20,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,7 +53,7 @@ fun MealPortionScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "食物配平与打卡计算器",
+            text = "打卡与食物配平",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -94,14 +93,14 @@ fun MealPortionScreen(
             }
         }
 
-        // 2. 食物搜索 (中国食物成分表 API)
+        // 2. 横置食物搜索与快速打卡输入框
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "2. 搜索中国食物成分表 (chinanutri.cn)",
+                    text = "2. 搜索食物成分库",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -114,7 +113,7 @@ fun MealPortionScreen(
                     OutlinedTextField(
                         value = state.searchQuery,
                         onValueChange = viewModel::onSearchQueryChanged,
-                        label = { Text("例如：米饭、鸡胸肉、苹果") },
+                        label = { Text("输入食物名称 (如：米饭、牛肉)") },
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )
@@ -125,7 +124,7 @@ fun MealPortionScreen(
 
                 if (state.searchResults.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "搜索结果 (点击加入计算):", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(text = "搜索结果 (点击加入下方配平面板):", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     state.searchResults.forEach { food ->
                         SearchResultItem(
@@ -137,7 +136,7 @@ fun MealPortionScreen(
             }
         }
 
-        // 3. 已选食物与自动配平面板
+        // 3. 多食物自动配平面板
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -153,7 +152,7 @@ fun MealPortionScreen(
 
                 if (state.selectedFoodInputs.isEmpty()) {
                     Text(
-                        text = "暂未添加食物，请在上方搜索并添加食物参与自动配平。",
+                        text = "暂未添加食物。请在上方搜索食物并加入配平面板，系统将依据选定餐别目标自动配平各食物推荐克数。",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     )
@@ -175,7 +174,7 @@ fun MealPortionScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "自动计算推荐重量结果:",
+                            text = "自动计算推荐吃量结果:",
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -190,7 +189,7 @@ fun MealPortionScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "• ${portion.foodName} ${if (portion.isLocked) "[已锁]" else ""}",
+                                    text = "• ${portion.foodName} ${if (portion.isLocked) "[已设固定重]" else "[自动配平]"}",
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 14.sp
                                 )
@@ -260,7 +259,7 @@ private fun SearchResultItem(
             )
         }
         OutlinedButton(onClick = onAddClick) {
-            Text("+ 配平")
+            Text("+ 加入配平")
         }
     }
 }
@@ -299,10 +298,10 @@ private fun SelectedFoodInputRow(
             Checkbox(
                 checked = input.isLocked,
                 onCheckedChange = { isChecked ->
-                    onToggleLock(isChecked, if (isChecked) 100.0 else null)
+                    onToggleLock(isChecked, if (isChecked) (input.fixedWeightGrams ?: 100.0) else null)
                 }
             )
-            Text(text = "固定重量 (g):", fontSize = 13.sp)
+            Text(text = "固定重量:", fontSize = 13.sp)
             if (input.isLocked) {
                 OutlinedTextField(
                     value = (input.fixedWeightGrams ?: 100.0).toString(),
@@ -314,8 +313,9 @@ private fun SelectedFoodInputRow(
                     modifier = Modifier.width(100.dp),
                     singleLine = true
                 )
+                Text(text = "g", fontSize = 13.sp)
             } else {
-                Text(text = "[自动计算未锁定]", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                Text(text = "[自动配平计算]", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
